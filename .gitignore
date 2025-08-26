@@ -1,0 +1,44 @@
+# Virtual Environment
+cloudsql_monitor_env/
+venv/
+env/
+.env
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data Files (potentially sensitive)
+*.xlsx
+*.csv
+*.json
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Google Cloud credentials (if any)
+*key*.json
+credentials.json
+service-account*.json
+
+# Streamlit secrets
+secrets.toml 

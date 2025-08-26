@@ -1,0 +1,2 @@
+Requirement already satisfied: python-dateutil in ./cloudsql_monitor_env/lib/python3.12/site-packages (2.9.0.post0)
+Requirement already satisfied: six>=1.5 in ./cloudsql_monitor_env/lib/python3.12/site-packages (from python-dateutil) (1.17.0)
