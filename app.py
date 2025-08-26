@@ -2,6 +2,7 @@
 """
 Cloud SQL Resource Utilization Dashboard
 Main application entry point for deployment
+Updated: Force refresh for real data - v2.0
 """
 
 import streamlit as st
