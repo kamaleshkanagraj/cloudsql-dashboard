@@ -20,9 +20,12 @@ __pycache__/
 *~
 
 # Data Files (potentially sensitive)
-*.xlsx
+# *.xlsx  # Allow sample data for demo
 *.csv
 *.json
+
+# Allow sample data file specifically
+!cloudsql_utilization_results.xlsx
 
 # OS Files
 .DS_Store
