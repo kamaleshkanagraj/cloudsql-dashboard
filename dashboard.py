@@ -378,17 +378,63 @@ class CloudSQLDashboard:
                       annotation_text="90% Spike Threshold (Zero Tolerance)", annotation_position="bottom")
         
         fig1.update_layout(
-            title='Zero-Spike Optimization Analysis - All Instances',
+            title={
+                'text': 'Zero-Spike Optimization Analysis - All Instances<br><sub>💡 Click and drag to zoom | Double-click to reset</sub>',
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18}
+            },
             xaxis_title='CPU Utilization (%) - 30 Day Average',
             yaxis_title='Cloud SQL Instances',
             height=max(600, len(self.instances_df) * 30),
             plot_bgcolor='white',
             showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            font=dict(size=12)
+            legend=dict(
+                orientation="h", 
+                yanchor="bottom", 
+                y=1.02, 
+                xanchor="center", 
+                x=0.5,
+                bgcolor="rgba(255,255,255,0.8)",
+                bordercolor="rgba(0,0,0,0.2)",
+                borderwidth=1
+            ),
+            font=dict(size=12),
+            margin=dict(l=20, r=20, t=80, b=60),
+            # Enhanced zoom and pan features
+            dragmode='zoom',
+            hovermode='closest'
         )
         
-        st.plotly_chart(fig1, use_container_width=True)
+        # Add professional container with zoom instructions
+        st.markdown("""
+        <div style="
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            text-align: center;
+        ">
+            <p style="margin: 0; color: #475569; font-size: 0.9rem;">
+                📊 <strong>Interactive Graph:</strong> Click and drag to zoom in | Double-click to reset view | Hover for details
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.plotly_chart(fig1, use_container_width=True, config={
+            'displayModeBar': True,
+            'displaylogo': False,
+            'modeBarButtonsToAdd': ['zoom2d', 'pan2d', 'select2d', 'lasso2d'],
+            'modeBarButtonsToRemove': ['autoScale2d'],
+            'toImageButtonOptions': {
+                'format': 'png',
+                'filename': 'cloudsql_optimization_analysis',
+                'height': 600,
+                'width': 1200,
+                'scale': 2
+            }
+        })
         
         # Time series analysis if metrics data is available
         if hasattr(self, 'metrics_df') and self.metrics_df is not None and not self.metrics_df.empty:
@@ -451,16 +497,61 @@ class CloudSQLDashboard:
                       annotation_text="60% Peak Threshold")
         
         fig2.update_layout(
-            title='CPU Utilization Timeline - Top 5 Underutilized Instances (by vCPU Count)',
-            xaxis_title='Time (3 Month Period)',
+            title={
+                'text': 'CPU Utilization Timeline - Top 5 Underutilized Instances<br><sub>🔍 Zoom in on time periods | Hover for exact values</sub>',
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18}
+            },
+            xaxis_title='Time (30 Day Period)',
             yaxis_title='CPU Utilization (%)',
             height=500,
             plot_bgcolor='white',
             showlegend=True,
-            legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
+            legend=dict(
+                orientation="v", 
+                yanchor="top", 
+                y=1, 
+                xanchor="left", 
+                x=1.02,
+                bgcolor="rgba(255,255,255,0.9)",
+                bordercolor="rgba(0,0,0,0.2)",
+                borderwidth=1
+            ),
+            margin=dict(l=60, r=120, t=80, b=60),
+            dragmode='zoom',
+            hovermode='x unified'
         )
         
-        st.plotly_chart(fig2, use_container_width=True)
+        # Add professional container with zoom instructions for time series
+        st.markdown("""
+        <div style="
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            text-align: center;
+        ">
+            <p style="margin: 0; color: #0c4a6e; font-size: 0.9rem;">
+                📈 <strong>Time Series Analysis:</strong> Drag to select time range | Double-click to reset | Click legend to toggle instances
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.plotly_chart(fig2, use_container_width=True, config={
+            'displayModeBar': True,
+            'displaylogo': False,
+            'modeBarButtonsToAdd': ['zoom2d', 'pan2d', 'select2d', 'zoomIn2d', 'zoomOut2d'],
+            'modeBarButtonsToRemove': ['autoScale2d'],
+            'toImageButtonOptions': {
+                'format': 'png',
+                'filename': 'cloudsql_timeline_analysis',
+                'height': 500,
+                'width': 1200,
+                'scale': 2
+            }
+        })
         
         # Summary statistics for the time period
         col1, col2 = st.columns(2)
@@ -550,16 +641,60 @@ class CloudSQLDashboard:
                       annotation_text="60% Efficiency Target")
         
         fig1.update_layout(
-            title='CPU Efficiency vs Waste by Project (%)',
+            title={
+                'text': 'CPU Efficiency vs Waste by Project<br><sub>📊 Interactive chart - hover for details | Click legend to toggle</sub>',
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18}
+            },
             xaxis_title='Project',
             yaxis_title='Efficiency / Waste Percentage (%)',
             height=450,
             plot_bgcolor='white',
             showlegend=True,
-            barmode='group'
+            barmode='group',
+            legend=dict(
+                orientation="h", 
+                yanchor="bottom", 
+                y=1.02, 
+                xanchor="center", 
+                x=0.5,
+                bgcolor="rgba(255,255,255,0.8)",
+                bordercolor="rgba(0,0,0,0.2)",
+                borderwidth=1
+            ),
+            margin=dict(l=60, r=60, t=80, b=60),
+            hovermode='x unified'
         )
         
-        st.plotly_chart(fig1, use_container_width=True)
+        # Add professional container with interaction instructions
+        st.markdown("""
+        <div style="
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            text-align: center;
+        ">
+            <p style="margin: 0; color: #92400e; font-size: 0.9rem;">
+                💰 <strong>Resource Analysis:</strong> Hover over bars for exact values | Click legend items to show/hide data
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.plotly_chart(fig1, use_container_width=True, config={
+            'displayModeBar': True,
+            'displaylogo': False,
+            'modeBarButtonsToAdd': ['zoom2d', 'pan2d', 'select2d'],
+            'toImageButtonOptions': {
+                'format': 'png',
+                'filename': 'cloudsql_project_efficiency',
+                'height': 450,
+                'width': 1200,
+                'scale': 2
+            }
+        })
         
         # Instance optimization potential
         st.markdown("### 🎯 Instance Optimization Potential")
@@ -603,14 +738,40 @@ class CloudSQLDashboard:
             )
             
             fig3.update_layout(
-                title='Zero-Spike Optimization Status Distribution',
+                title={
+                    'text': 'Optimization Status Distribution<br><sub>🎯 Click segments for details</sub>',
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 16}
+                },
                 height=450,
                 showlegend=True,
-                legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05),
-                font=dict(size=11)
+                legend=dict(
+                    orientation="v", 
+                    yanchor="middle", 
+                    y=0.5, 
+                    xanchor="left", 
+                    x=1.05,
+                    bgcolor="rgba(255,255,255,0.9)",
+                    bordercolor="rgba(0,0,0,0.2)",
+                    borderwidth=1
+                ),
+                font=dict(size=11),
+                margin=dict(l=20, r=120, t=60, b=20)
             )
             
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, use_container_width=True, config={
+                'displayModeBar': True,
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['zoom2d', 'pan2d', 'select2d', 'lasso2d'],
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': 'cloudsql_optimization_distribution',
+                    'height': 450,
+                    'width': 600,
+                    'scale': 2
+                }
+            })
         
         with col2:
             # Project-wise underutilization
@@ -637,15 +798,33 @@ class CloudSQLDashboard:
                           annotation_text="50% Critical")
             
             fig4.update_layout(
-                title='Underutilization % by Project',
+                title={
+                    'text': 'Underutilization by Project<br><sub>📊 Hover for exact percentages</sub>',
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 16}
+                },
                 xaxis_title='Underutilization Percentage (%)',
                 yaxis_title='Project',
                 height=400,
                 plot_bgcolor='white',
-                showlegend=False
+                showlegend=False,
+                margin=dict(l=120, r=60, t=60, b=60),
+                hovermode='y unified'
             )
             
-            st.plotly_chart(fig4, use_container_width=True)
+            st.plotly_chart(fig4, use_container_width=True, config={
+                'displayModeBar': True,
+                'displaylogo': False,
+                'modeBarButtonsToAdd': ['zoom2d', 'pan2d'],
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': 'cloudsql_project_underutilization',
+                    'height': 400,
+                    'width': 800,
+                    'scale': 2
+                }
+            })
         
         # Simplified key metrics table
         st.markdown("### 📊 Project Summary Table")
