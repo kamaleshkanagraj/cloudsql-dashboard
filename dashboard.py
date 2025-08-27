@@ -21,14 +21,15 @@ st.markdown("""
     .main-header {
         font-size: 3.2rem;
         font-weight: 800;
-        color: #1e3a8a;
+        color: white !important;
         text-align: center;
         margin-bottom: 2rem;
         padding: 1.5rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         border-radius: 15px;
         box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        display: block !important;
+        width: 100% !important;
     }
     
     .project-header {
@@ -1391,8 +1392,24 @@ class CloudSQLDashboard:
     
     def run_dashboard(self):
         """Main dashboard function"""
-        # Header
-        st.markdown('<div class="main-header">&#128269; Cloud SQL Resource Utilization Dashboard</div>', unsafe_allow_html=True)
+        # Header - Force render with container
+        st.markdown("""
+        <div class="main-header" style="
+            font-size: 3.2rem;
+            font-weight: 800;
+            color: white !important;
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: block !important;
+            width: 100% !important;
+        ">
+            🔍 Cloud SQL Resource Utilization Dashboard
+        </div>
+        """, unsafe_allow_html=True)
         
         # Load data
         if not self.load_data():
