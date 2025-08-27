@@ -243,107 +243,45 @@ class CloudSQLDashboard:
         cpu_waste_pct = ((total_vcpu - total_cpu_used) / total_vcpu * 100) if total_vcpu > 0 else 0
         memory_waste_pct = ((total_memory - total_memory_used) / total_memory * 100) if total_memory > 0 else 0
         
-        # Enhanced metrics grid
+        # Enhanced metrics grid using Streamlit native components
         col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
-            st.markdown(f"""
-            <div style="
-                background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-                padding: 2rem;
-                border-radius: 15px;
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-                border: 1px solid #e2e8f0;
-                margin: 1rem 0;
-                transition: transform 0.2s ease;
-            ">
-                <div class="resource-value">{total_instances}</div>
-                <div class="resource-label">Total Instances</div>
-                <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;">
-                    {total_projects} projects
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="Total Instances",
+                value=total_instances,
+                delta=f"{total_projects} projects"
+            )
         
         with col2:
             underutil_pct = (underutilized_instances/total_instances)*100 if total_instances > 0 else 0
-            color = "#dc2626" if underutil_pct > 50 else "#f59e0b" if underutil_pct > 25 else "#16a34a"
-            st.markdown(f"""
-            <div style="
-                background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-                padding: 2rem;
-                border-radius: 15px;
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-                border: 1px solid #e2e8f0;
-                margin: 1rem 0;
-                transition: transform 0.2s ease;
-            ">
-                <div class="resource-value" style="color: {color}">{underutilized_instances}</div>
-                <div class="resource-label">Underutilized</div>
-                <div style="font-size: 0.8rem; color: {color}; margin-top: 0.5rem; font-weight: 600;">
-                    {underutil_pct:.1f}% optimization opportunity
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="Underutilized",
+                value=underutilized_instances,
+                delta=f"{underutil_pct:.1f}% optimization opportunity"
+            )
         
         with col3:
-            st.markdown(f"""
-            <div style="
-                background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-                padding: 2rem;
-                border-radius: 15px;
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-                border: 1px solid #e2e8f0;
-                margin: 1rem 0;
-                transition: transform 0.2s ease;
-            ">
-                <div class="resource-value">{total_cpu_used:.1f}</div>
-                <div class="resource-label">vCPUs Actually Used</div>
-                <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;">
-                    of {total_vcpu} allocated ({cpu_waste_pct:.1f}% waste)
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="vCPUs Actually Used",
+                value=f"{total_cpu_used:.1f}",
+                delta=f"of {total_vcpu} allocated ({cpu_waste_pct:.1f}% waste)"
+            )
         
         with col4:
-            st.markdown(f"""
-            <div style="
-                background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-                padding: 2rem;
-                border-radius: 15px;
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-                border: 1px solid #e2e8f0;
-                margin: 1rem 0;
-                transition: transform 0.2s ease;
-            ">
-                <div class="resource-value">{total_memory_used:.0f} GB</div>
-                <div class="resource-label">Memory Actually Used</div>
-                <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;">
-                    of {total_memory:.0f} GB ({memory_waste_pct:.1f}% waste)
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="Memory Actually Used",
+                value=f"{total_memory_used:.0f} GB",
+                delta=f"of {total_memory:.0f} GB ({memory_waste_pct:.1f}% waste)"
+            )
         
         with col5:
             potential_savings = underutilized_instances / total_instances * 100 if total_instances > 0 else 0
-            savings_color = "#16a34a" if potential_savings > 0 else "#64748b"
-            st.markdown(f"""
-            <div style="
-                background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-                padding: 2rem;
-                border-radius: 15px;
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-                border: 1px solid #e2e8f0;
-                margin: 1rem 0;
-                transition: transform 0.2s ease;
-            ">
-                <div class="resource-value" style="color: {savings_color}">{potential_savings:.1f}%</div>
-                <div class="resource-label">Potential Cost Savings</div>
-                <div style="font-size: 0.8rem; color: {savings_color}; margin-top: 0.5rem;">
-                    Monthly optimization
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="Potential Cost Savings",
+                value=f"{potential_savings:.1f}%",
+                delta="Monthly optimization"
+            )
         
         # Main utilization analysis graphs
         self.create_main_utilization_graphs()
@@ -1432,44 +1370,16 @@ class CloudSQLDashboard:
     
     def run_dashboard(self):
         """Main dashboard function"""
-        # Header - Force render with robust styling
-        st.markdown("""
-        <div style="
-            font-size: 3.2rem;
-            font-weight: 800;
-            color: white;
-            text-align: center;
-            margin-bottom: 2rem;
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            display: block;
-            width: 100%;
-            box-sizing: border-box;
-        ">
-            🔍 Cloud SQL Resource Utilization Dashboard
-        </div>
-        """, unsafe_allow_html=True)
+        # Header using Streamlit native components
+        st.markdown("# 🔍 Cloud SQL Resource Utilization Dashboard")
+        st.markdown("---")
         
         # Load data
         if not self.load_data():
             st.stop()
         
         # Sidebar for view selection
-        st.sidebar.markdown("""
-        <div style="
-            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-            padding: 1.5rem;
-            border-radius: 12px;
-            border: 3px solid #3b82f6;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.1);
-            color: white;
-        ">
-            <h3 style="color: white; margin: 0;">📋 Analysis Mode</h3>
-        </div>
-        """, unsafe_allow_html=True)
+        st.sidebar.markdown("### 📋 Analysis Mode")
         
         view_mode = st.sidebar.radio(
             "Choose your analysis view:",
