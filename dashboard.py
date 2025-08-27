@@ -222,7 +222,21 @@ class CloudSQLDashboard:
         if self.instances_df is None or self.instances_df.empty:
             return
         
-        st.markdown("## 📊 Executive Cloud SQL Resource Analysis")
+        # Executive analysis header with light blue styling
+        st.markdown("""
+        <div style="
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f1f8ff 0%, #e3f2fd 100%);
+            border: 2px solid #42a5f5;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 3px 10px rgba(66, 165, 245, 0.15);
+        ">
+            <h2 style="color: #1565c0; margin: 0; text-align: center;">
+                📊 Executive Cloud SQL Resource Analysis
+            </h2>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Enhanced key metrics with cost implications
         total_instances = len(self.instances_df)
@@ -243,7 +257,18 @@ class CloudSQLDashboard:
         cpu_waste_pct = ((total_vcpu - total_cpu_used) / total_vcpu * 100) if total_vcpu > 0 else 0
         memory_waste_pct = ((total_memory - total_memory_used) / total_memory * 100) if total_memory > 0 else 0
         
-        # Enhanced metrics grid using Streamlit native components
+        # Enhanced metrics grid with light blue container
+        st.markdown("""
+        <div style="
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #fafffe 0%, #f8fdff 100%);
+            border: 2px solid #81d4fa;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 2px 8px rgba(129, 212, 250, 0.2);
+        ">
+        """, unsafe_allow_html=True)
+        
         col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
@@ -283,6 +308,9 @@ class CloudSQLDashboard:
                 delta="Monthly optimization"
             )
         
+        # Close metrics container
+        st.markdown("</div>", unsafe_allow_html=True)
+        
         # Main utilization analysis graphs
         self.create_main_utilization_graphs()
         
@@ -291,7 +319,21 @@ class CloudSQLDashboard:
     
     def create_main_utilization_graphs(self):
         """Create main utilization analysis graphs"""
-        st.markdown("## 📈 CPU Utilization Analysis")
+        # CPU Analysis header with light blue styling
+        st.markdown("""
+        <div style="
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f1f8ff 0%, #e3f2fd 100%);
+            border: 2px solid #42a5f5;
+            border-radius: 12px;
+            margin: 2rem 0 1rem 0;
+            box-shadow: 0 3px 10px rgba(66, 165, 245, 0.15);
+        ">
+            <h2 style="color: #1565c0; margin: 0; text-align: center;">
+                📈 CPU Utilization Analysis
+            </h2>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Main graph: Instances under 40% utilization
         st.markdown("### 🎯 Instances Below 40% CPU Threshold")
@@ -1370,16 +1412,42 @@ class CloudSQLDashboard:
     
     def run_dashboard(self):
         """Main dashboard function"""
-        # Header using Streamlit native components
-        st.markdown("# 🔍 Cloud SQL Resource Utilization Dashboard")
-        st.markdown("---")
+        # Header with light blue styling
+        st.markdown("""
+        <div style="
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, #e0f2fe 0%, #b3e5fc 100%);
+            border: 2px solid #0288d1;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(2, 136, 209, 0.2);
+        ">
+            <h1 style="color: #01579b; margin: 0; font-size: 2.5rem;">
+                🔍 Cloud SQL Resource Utilization Dashboard
+            </h1>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Load data
         if not self.load_data():
             st.stop()
         
-        # Sidebar for view selection
-        st.sidebar.markdown("### 📋 Analysis Mode")
+        # Sidebar with light blue styling
+        st.sidebar.markdown("""
+        <div style="
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 100%);
+            border: 2px solid #29b6f6;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 3px 10px rgba(41, 182, 246, 0.2);
+        ">
+            <h3 style="color: #0277bd; margin: 0; text-align: center;">
+                📋 Analysis Mode
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         view_mode = st.sidebar.radio(
             "Choose your analysis view:",
