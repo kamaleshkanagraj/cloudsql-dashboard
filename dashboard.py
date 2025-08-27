@@ -191,18 +191,7 @@ class CloudSQLDashboard:
         try:
             self.instances_df = pd.read_excel('cloudsql_utilization_results.xlsx', sheet_name='Instance Summary')
             
-            # Debug information to verify data source
-            if not self.instances_df.empty:
-                unique_projects = self.instances_df['project_id'].unique()
-                st.sidebar.success(f"✅ **Real Data Loaded!**")
-                st.sidebar.info(f"📊 **{len(self.instances_df)} instances** from **{len(unique_projects)} projects**")
-                st.sidebar.info(f"🏢 **Sample projects:** {', '.join(unique_projects[:3])}...")
-                
-                # Check if this is sample data
-                if any('demo-project' in proj for proj in unique_projects):
-                    st.sidebar.warning("⚠️ **Sample data detected** - Upload real data for production analysis")
-                else:
-                    st.sidebar.success("🎯 **Production data confirmed** - Real Cloud SQL analysis active")
+            # Clean data loading without debug messages
             
             # Try to load metrics
             try:
