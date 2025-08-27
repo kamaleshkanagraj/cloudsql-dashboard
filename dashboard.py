@@ -222,21 +222,8 @@ class CloudSQLDashboard:
         if self.instances_df is None or self.instances_df.empty:
             return
         
-        # Executive analysis header with professional styling
-        st.markdown("""
-        <div style="
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #f8faff 0%, #eef2ff 100%);
-            border: 2px solid #6366f1;
-            border-radius: 12px;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
-        ">
-            <h2 style="color: #4338ca; margin: 0; text-align: center; font-weight: 700;">
-                📊 Executive Cloud SQL Resource Analysis
-            </h2>
-        </div>
-        """, unsafe_allow_html=True)
+        # Executive analysis header - clean and professional
+        st.markdown("## 📊 Executive Cloud SQL Resource Analysis")
         
         # Enhanced key metrics with cost implications
         total_instances = len(self.instances_df)
@@ -319,21 +306,8 @@ class CloudSQLDashboard:
     
     def create_main_utilization_graphs(self):
         """Create main utilization analysis graphs"""
-        # CPU Analysis header with professional styling
-        st.markdown("""
-        <div style="
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #f8faff 0%, #eef2ff 100%);
-            border: 2px solid #6366f1;
-            border-radius: 12px;
-            margin: 2rem 0 1rem 0;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
-        ">
-            <h2 style="color: #4338ca; margin: 0; text-align: center; font-weight: 700;">
-                📈 CPU Utilization Analysis
-            </h2>
-        </div>
-        """, unsafe_allow_html=True)
+        # CPU Analysis header - clean and professional
+        st.markdown("## 📈 CPU Utilization Analysis")
         
         # Main graph: Instances under 40% utilization
         st.markdown("### 🎯 Instances Below 40% CPU Threshold")
@@ -1433,17 +1407,16 @@ class CloudSQLDashboard:
         if not self.load_data():
             st.stop()
         
-        # Sidebar with professional styling
+        # Sidebar with gradient background for Analysis Mode
         st.sidebar.markdown("""
         <div style="
             padding: 1.5rem;
-            background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
-            border: 2px solid #6366f1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 12px;
             margin-bottom: 1.5rem;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
         ">
-            <h3 style="color: #4338ca; margin: 0; text-align: center; font-weight: 700;">
+            <h3 style="color: white; margin: 0; text-align: center; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">
                 📋 Analysis Mode
             </h3>
         </div>
