@@ -18,7 +18,7 @@ from dashboard import CloudSQLDashboard
 def main():
     """Main application entry point"""
     st.set_page_config(
-        page_title="Cloud SQL Optimization Dashboard",
+        page_title="Cloud SQL Resource Utilization Dashboard",
         page_icon="🔍",
         layout="wide",
         initial_sidebar_state="expanded"

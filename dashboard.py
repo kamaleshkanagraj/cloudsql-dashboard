@@ -1392,7 +1392,7 @@ class CloudSQLDashboard:
     def run_dashboard(self):
         """Main dashboard function"""
         # Header
-        st.markdown('<div class="main-header">🔍 Cloud SQL Resource Utilization Dashboard</div>', unsafe_allow_html=True)
+        st.markdown('<div class="main-header">&#128269; Cloud SQL Resource Utilization Dashboard</div>', unsafe_allow_html=True)
         
         # Load data
         if not self.load_data():

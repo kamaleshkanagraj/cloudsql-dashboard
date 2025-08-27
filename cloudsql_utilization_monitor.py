@@ -236,7 +236,7 @@ class CloudSQLMonitor:
                         view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
                         aggregation=monitoring_v3.Aggregation(
                             alignment_period={"seconds": 300},  # 5-minute intervals for granular data
-                            per_series_aligner=monitoring_v3.Aggregation.Aligner.ALIGN_MAX,  # Capture peak usage in each 5-min window
+                            per_series_aligner=monitoring_v3.Aggregation.Aligner.ALIGN_MEAN,  # Match Google Console aggregation method
                         ),
                     )
                     
