@@ -244,17 +244,8 @@ class CloudSQLDashboard:
         cpu_waste_pct = ((total_vcpu - total_cpu_used) / total_vcpu * 100) if total_vcpu > 0 else 0
         memory_waste_pct = ((total_memory - total_memory_used) / total_memory * 100) if total_memory > 0 else 0
         
-        # Enhanced metrics grid with professional white container
-        st.markdown("""
-        <div style="
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            margin: 1rem 0;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        ">
-        """, unsafe_allow_html=True)
+        # Enhanced metrics grid - clean layout without background
+        st.markdown('<div style="margin: 1rem 0;">', unsafe_allow_html=True)
         
         col1, col2, col3, col4, col5 = st.columns(5)
         
