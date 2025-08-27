@@ -222,17 +222,17 @@ class CloudSQLDashboard:
         if self.instances_df is None or self.instances_df.empty:
             return
         
-        # Executive analysis header with light blue styling
+        # Executive analysis header with professional styling
         st.markdown("""
         <div style="
             padding: 1.5rem;
-            background: linear-gradient(135deg, #f1f8ff 0%, #e3f2fd 100%);
-            border: 2px solid #42a5f5;
+            background: linear-gradient(135deg, #f8faff 0%, #eef2ff 100%);
+            border: 2px solid #6366f1;
             border-radius: 12px;
             margin-bottom: 2rem;
-            box-shadow: 0 3px 10px rgba(66, 165, 245, 0.15);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
         ">
-            <h2 style="color: #1565c0; margin: 0; text-align: center;">
+            <h2 style="color: #4338ca; margin: 0; text-align: center; font-weight: 700;">
                 📊 Executive Cloud SQL Resource Analysis
             </h2>
         </div>
@@ -257,15 +257,15 @@ class CloudSQLDashboard:
         cpu_waste_pct = ((total_vcpu - total_cpu_used) / total_vcpu * 100) if total_vcpu > 0 else 0
         memory_waste_pct = ((total_memory - total_memory_used) / total_memory * 100) if total_memory > 0 else 0
         
-        # Enhanced metrics grid with light blue container
+        # Enhanced metrics grid with professional white container
         st.markdown("""
         <div style="
             padding: 1.5rem;
-            background: linear-gradient(135deg, #fafffe 0%, #f8fdff 100%);
-            border: 2px solid #81d4fa;
+            background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+            border: 2px solid #e2e8f0;
             border-radius: 12px;
             margin: 1rem 0;
-            box-shadow: 0 2px 8px rgba(129, 212, 250, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         ">
         """, unsafe_allow_html=True)
         
@@ -319,17 +319,17 @@ class CloudSQLDashboard:
     
     def create_main_utilization_graphs(self):
         """Create main utilization analysis graphs"""
-        # CPU Analysis header with light blue styling
+        # CPU Analysis header with professional styling
         st.markdown("""
         <div style="
             padding: 1.5rem;
-            background: linear-gradient(135deg, #f1f8ff 0%, #e3f2fd 100%);
-            border: 2px solid #42a5f5;
+            background: linear-gradient(135deg, #f8faff 0%, #eef2ff 100%);
+            border: 2px solid #6366f1;
             border-radius: 12px;
             margin: 2rem 0 1rem 0;
-            box-shadow: 0 3px 10px rgba(66, 165, 245, 0.15);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
         ">
-            <h2 style="color: #1565c0; margin: 0; text-align: center;">
+            <h2 style="color: #4338ca; margin: 0; text-align: center; font-weight: 700;">
                 📈 CPU Utilization Analysis
             </h2>
         </div>
@@ -1412,18 +1412,18 @@ class CloudSQLDashboard:
     
     def run_dashboard(self):
         """Main dashboard function"""
-        # Header with light blue styling
+        # Header with beautiful purple gradient (matching localhost)
         st.markdown("""
         <div style="
             text-align: center;
             padding: 2rem;
-            background: linear-gradient(135deg, #e0f2fe 0%, #b3e5fc 100%);
-            border: 2px solid #0288d1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 2px solid #5a67d8;
             border-radius: 15px;
             margin-bottom: 2rem;
-            box-shadow: 0 4px 15px rgba(2, 136, 209, 0.2);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
         ">
-            <h1 style="color: #01579b; margin: 0; font-size: 2.5rem;">
+            <h1 style="color: white; margin: 0; font-size: 2.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
                 🔍 Cloud SQL Resource Utilization Dashboard
             </h1>
         </div>
@@ -1433,17 +1433,17 @@ class CloudSQLDashboard:
         if not self.load_data():
             st.stop()
         
-        # Sidebar with light blue styling
+        # Sidebar with professional styling
         st.sidebar.markdown("""
         <div style="
             padding: 1.5rem;
-            background: linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 100%);
-            border: 2px solid #29b6f6;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+            border: 2px solid #6366f1;
             border-radius: 12px;
             margin-bottom: 1.5rem;
-            box-shadow: 0 3px 10px rgba(41, 182, 246, 0.2);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
         ">
-            <h3 style="color: #0277bd; margin: 0; text-align: center;">
+            <h3 style="color: #4338ca; margin: 0; text-align: center; font-weight: 700;">
                 📋 Analysis Mode
             </h3>
         </div>
