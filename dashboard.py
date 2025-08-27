@@ -867,7 +867,21 @@ class CloudSQLDashboard:
             st.warning(f"No data found for project: {selected_project}")
             return
         
-        st.markdown(f'<div class="project-header">🔍 Project Analysis: {selected_project}</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e40af;
+            margin: 2rem 0 1.5rem 0;
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-radius: 12px;
+            border-left: 6px solid #3b82f6;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        ">
+            🔍 Project Analysis: {selected_project}
+        </div>
+        """, unsafe_allow_html=True)
         
         # Main visualization: CPU Utilization vs Instance Names
         st.markdown("## 📊 CPU Utilization Analysis (Your Requested Graph)")
@@ -1343,7 +1357,17 @@ class CloudSQLDashboard:
                 project_underutil = len(project_instances[project_instances['underutilized'] == True])
                 
                 st.markdown(f"""
-                <div class="project-header">
+                <div style="
+                    font-size: 2rem;
+                    font-weight: 700;
+                    color: #1e40af;
+                    margin: 2rem 0 1.5rem 0;
+                    padding: 1rem 1.5rem;
+                    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+                    border-radius: 12px;
+                    border-left: 6px solid #3b82f6;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                ">
                     📁 Project: {current_project} 
                     <span style="font-size: 1rem; font-weight: normal;">
                         ({len(project_instances)} instances, {project_underutil} underutilized)
