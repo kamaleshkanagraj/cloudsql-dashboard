@@ -289,11 +289,318 @@ class CloudSQLDashboard:
         # Close metrics container
         st.markdown("</div>", unsafe_allow_html=True)
         
+        # Projects with >3 instances table
+        self.create_projects_over_threshold_table()
+        
+        # Project-level statistics with database counts
+        self.create_project_database_summary()
+        
         # Main utilization analysis graphs
         self.create_main_utilization_graphs()
         
         # Enhanced project-wise resource summary
         self.create_enhanced_project_summary()
+    
+    def generate_csv_report(self):
+        """Generate CSV report with project-level summary sorted by instance count"""
+        if self.instances_df is None or self.instances_df.empty:
+            return ""
+        
+        # Calculate project-level statistics
+        project_stats = self.instances_df.groupby('project_id').agg({
+            'instance_id': 'count',  # Instance count
+            'vcpu_count': 'sum',     # Total vCPUs
+            'memory_gb': 'sum',      # Total Memory
+            'disk_size_gb': 'sum',   # Total Storage
+            'avg_cpu_utilization': 'mean',      # Average CPU utilization
+            'avg_memory_utilization': 'mean',   # Average Memory utilization
+            'avg_disk_utilization': 'mean',     # Average Storage utilization
+            'critical_spikes_count': 'sum',     # Total critical spikes
+            'moderate_spikes_count': 'sum',     # Total moderate spikes
+            'underutilized': 'sum'   # Underutilized instances count
+        }).round(2)
+        
+        # Add database count if available
+        if 'database_count' in self.instances_df.columns:
+            project_stats['total_databases'] = self.instances_df.groupby('project_id')['database_count'].sum()
+        else:
+            project_stats['total_databases'] = 'N/A'
+        
+        # Sort by instance count (descending)
+        project_stats = project_stats.sort_values('instance_id', ascending=False)
+        
+        # Create optimization recommendations
+        def get_optimization_status(row):
+            if row['underutilized'] > 0:
+                return "SAFE TO OPTIMIZE"
+            else:
+                return "KEEP CURRENT SIZE"
+        
+        project_stats['optimization_recommendation'] = project_stats.apply(get_optimization_status, axis=1)
+        
+        # Rename columns for CSV export
+        csv_df = project_stats.rename(columns={
+            'instance_id': 'Instance_Count',
+            'vcpu_count': 'Total_vCPUs',
+            'memory_gb': 'Total_Memory_GB',
+            'disk_size_gb': 'Total_Storage_GB',
+            'avg_cpu_utilization': 'Avg_CPU_Percent',
+            'avg_memory_utilization': 'Avg_Memory_Percent',
+            'avg_disk_utilization': 'Avg_Storage_Percent',
+            'critical_spikes_count': 'Critical_Spikes_90plus',
+            'moderate_spikes_count': 'Moderate_Spikes_50to89',
+            'underutilized': 'Instances_Safe_To_Optimize',
+            'total_databases': 'Total_Databases',
+            'optimization_recommendation': 'Project_Recommendation'
+        })
+        
+        # Reset index to include project_id as a column
+        csv_df = csv_df.reset_index()
+        csv_df = csv_df.rename(columns={'project_id': 'Project_ID'})
+        
+        # Reorder columns for logical flow
+        column_order = [
+            'Project_ID', 'Instance_Count', 'Total_Databases', 'Total_vCPUs', 
+            'Total_Memory_GB', 'Total_Storage_GB', 'Avg_CPU_Percent', 
+            'Avg_Memory_Percent', 'Avg_Storage_Percent', 'Critical_Spikes_90plus',
+            'Moderate_Spikes_50to89', 'Instances_Safe_To_Optimize', 'Project_Recommendation'
+        ]
+        
+        csv_df = csv_df[column_order]
+        
+        return csv_df.to_csv(index=False)
+    
+    def create_projects_over_threshold_table(self):
+        """Create a prominent table showing projects with ≥3 instances (filtered view for Executive Overview)"""
+        if self.instances_df is None or self.instances_df.empty:
+            return
+        
+        st.markdown("## 🎯 Projects Under Analysis")
+        st.markdown("*Only projects with **≥3 instances** shown for optimization focus*")
+        
+        # Filter to show only projects with ≥3 instances (for Executive Overview only)
+        project_counts = self.instances_df.groupby('project_id').size()
+        filtered_projects = project_counts[project_counts >= 3].index
+        filtered_df = self.instances_df[self.instances_df['project_id'].isin(filtered_projects)]
+        
+        if filtered_df.empty:
+            st.warning("⚠️ No projects with ≥3 instances found in current data.")
+            return
+        
+        # Calculate project statistics (only for projects with ≥3 instances)
+        # Check if database_count column exists (from updated monitoring script)
+        agg_dict = {
+            'instance_id': 'count',
+            'vcpu_count': 'sum',
+            'memory_gb': 'sum',
+            'disk_size_gb': 'sum',
+            'avg_cpu_utilization': 'mean',
+            'avg_memory_utilization': 'mean',
+            'avg_disk_utilization': 'mean',
+            'underutilized': 'sum'
+        }
+        
+        # Add database_count if column exists
+        if 'database_count' in filtered_df.columns:
+            agg_dict['database_count'] = 'sum'
+        
+        project_summary = filtered_df.groupby('project_id').agg(agg_dict).round(1)
+        
+        # Rename columns for clarity - handle both cases (with/without database_count)
+        if 'database_count' in filtered_df.columns:
+            project_summary.columns = [
+                'Instances', 'Total_vCPUs', 'Total_Memory_GB', 'Total_Storage_GB', 
+                'Avg_CPU_%', 'Avg_Memory_%', 'Avg_Storage_%', 'Underutilized', 'Total_DBs'
+            ]
+        else:
+            project_summary.columns = [
+                'Instances', 'Total_vCPUs', 'Total_Memory_GB', 'Total_Storage_GB', 
+                'Avg_CPU_%', 'Avg_Memory_%', 'Avg_Storage_%', 'Underutilized'
+            ]
+            # Add placeholder database count
+            project_summary['Total_DBs'] = 'N/A'
+        
+        # Sort by instance count (descending)
+        project_summary = project_summary.sort_values('Instances', ascending=False)
+        
+        # Add optimization potential column
+        project_summary['Optimization_Potential'] = (
+            project_summary['Underutilized'] / project_summary['Instances'] * 100
+        ).round(1)
+        
+        # Create display dataframe with better formatting
+        display_df = project_summary.copy()
+        display_df['Avg_CPU_%'] = display_df['Avg_CPU_%'].apply(lambda x: f"{x:.1f}%")
+        display_df['Avg_Memory_%'] = display_df['Avg_Memory_%'].apply(lambda x: f"{x:.1f}%")
+        display_df['Avg_Storage_%'] = display_df['Avg_Storage_%'].apply(lambda x: f"{x:.1f}%")
+        display_df['Total_Memory_GB'] = display_df['Total_Memory_GB'].apply(lambda x: f"{x:.0f} GB")
+        display_df['Total_Storage_GB'] = display_df['Total_Storage_GB'].apply(lambda x: f"{x:.0f} GB")
+        display_df['Optimization_Potential'] = display_df['Optimization_Potential'].apply(lambda x: f"{x:.1f}%")
+        
+        # Rename for final display
+        final_display = display_df.rename(columns={
+            'Instances': '🏗️ Instances',
+            'Total_DBs': '🗄️ Databases',
+            'Total_vCPUs': '⚡ vCPUs',
+            'Total_Memory_GB': '💾 Memory',
+            'Total_Storage_GB': '💿 Storage',
+            'Avg_CPU_%': '📊 Avg CPU',
+            'Avg_Memory_%': '📊 Avg Memory',
+            'Avg_Storage_%': '📊 Avg Storage',
+            'Underutilized': '🎯 Can Optimize',
+            'Optimization_Potential': '📈 Opt Potential'
+        })
+        
+        # Display the table
+        st.dataframe(
+            final_display[[
+                '🏗️ Instances', '🗄️ Databases', '⚡ vCPUs', '💾 Memory', '💿 Storage',
+                '📊 Avg CPU', '📊 Avg Memory', '📊 Avg Storage', '🎯 Can Optimize', '📈 Opt Potential'
+            ]], 
+            use_container_width=True,
+            height=400
+        )
+        
+        # Summary statistics below the table
+        col1, col2, col3, col4 = st.columns(4)
+        
+        total_projects = len(project_summary)
+        total_instances = project_summary['Instances'].sum()
+        
+        # Handle database count (might be N/A if column doesn't exist)
+        if 'database_count' in filtered_df.columns:
+            total_databases = project_summary['Total_DBs'].sum()
+            db_display = f"{total_databases:,}"
+            db_avg = f"Avg: {total_databases/total_instances:.1f} per instance"
+        else:
+            db_display = "Run updated script"
+            db_avg = "Database count not available"
+        
+        high_potential_projects = len(project_summary[project_summary['Optimization_Potential'] >= 30])
+        
+        with col1:
+            st.metric(
+                "📊 Projects Analyzed", 
+                total_projects,
+                "All have >3 instances"
+            )
+        
+        with col2:
+            st.metric(
+                "🏗️ Total Instances", 
+                total_instances,
+                f"Avg: {total_instances/total_projects:.1f} per project"
+            )
+        
+        with col3:
+            st.metric(
+                "🗄️ Total Databases", 
+                db_display,
+                db_avg
+            )
+        
+        with col4:
+            st.metric(
+                "🎯 High Optimization Potential", 
+                f"{high_potential_projects} projects",
+                "≥30% instances can be optimized"
+            )
+        
+        # Add explanation
+        if 'database_count' in filtered_df.columns:
+            st.info(
+                "💡 **Executive Overview Focus**: Only projects with ≥3 instances are shown here for optimization focus. "
+                "This helps prioritize environments where optimization has meaningful impact. "
+                "To see ALL projects, switch to 'Instance-Level Analysis' view."
+            )
+        else:
+            st.warning(
+                "⚠️ **Database Count Not Available**: To see database counts per instance, please run the updated monitoring script:\n\n"
+                "`python cloudsql_utilization_monitor.py`\n\n"
+                "The updated script includes database counting functionality."
+            )
+    
+    def create_project_database_summary(self):
+        """Create project-level summary with instance and database counts"""
+        if self.instances_df is None or self.instances_df.empty:
+            return
+        
+        st.markdown("## 🏢 Project Analysis Summary")
+        st.markdown("*Projects with >3 instances (filtered for optimization focus)*")
+        
+        # Calculate project-level statistics
+        project_stats = self.instances_df.groupby('project_id').agg({
+            'instance_id': 'count',  # Instance count
+            'database_count': 'sum',  # Total databases
+            'vcpu_count': 'sum',     # Total vCPUs
+            'memory_gb': 'sum',      # Total memory
+            'avg_cpu_utilization': 'mean',  # Average CPU utilization
+            'underutilized': 'sum'   # Underutilized instances
+        }).round(1)
+        
+        project_stats.columns = ['Instances', 'Total_Databases', 'Total_vCPUs', 'Total_Memory_GB', 'Avg_CPU_%', 'Underutilized']
+        project_stats = project_stats.sort_values('Instances', ascending=False)
+        
+        # Display in two columns
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.markdown("### 📊 Project Resource Overview")
+            
+            # Create a formatted table
+            display_df = project_stats.copy()
+            display_df['Avg_CPU_%'] = display_df['Avg_CPU_%'].apply(lambda x: f"{x:.1f}%")
+            display_df['Total_Memory_GB'] = display_df['Total_Memory_GB'].apply(lambda x: f"{x:.0f} GB")
+            display_df['Optimization_Rate'] = (display_df['Underutilized'] / display_df['Instances'] * 100).apply(lambda x: f"{x:.1f}%")
+            
+            # Rename columns for display
+            display_df = display_df.rename(columns={
+                'Instances': '🏗️ Instances',
+                'Total_Databases': '🗄️ Databases', 
+                'Total_vCPUs': '⚡ vCPUs',
+                'Total_Memory_GB': '💾 Memory',
+                'Avg_CPU_%': '📈 Avg CPU',
+                'Underutilized': '🎯 Can Optimize',
+                'Optimization_Rate': '📊 Opt Rate'
+            })
+            
+            st.dataframe(
+                display_df[['🏗️ Instances', '🗄️ Databases', '⚡ vCPUs', '💾 Memory', '📈 Avg CPU', '🎯 Can Optimize', '📊 Opt Rate']], 
+                use_container_width=True
+            )
+        
+        with col2:
+            st.markdown("### 📈 Key Insights")
+            
+            # Top project by instances
+            top_project = project_stats.index[0]
+            top_instances = project_stats.loc[top_project, 'Instances']
+            top_databases = project_stats.loc[top_project, 'Total_Databases']
+            
+            st.metric(
+                "Largest Project",
+                top_project,
+                f"{top_instances} instances, {top_databases} DBs"
+            )
+            
+            # Total databases across all projects
+            total_databases = project_stats['Total_Databases'].sum()
+            avg_db_per_instance = total_databases / project_stats['Instances'].sum()
+            
+            st.metric(
+                "Total Databases",
+                f"{total_databases:,}",
+                f"{avg_db_per_instance:.1f} DBs/instance avg"
+            )
+            
+            # Projects with high optimization potential
+            high_opt_projects = len(project_stats[project_stats['Underutilized'] >= 2])
+            
+            st.metric(
+                "High Optimization Potential",
+                f"{high_opt_projects} projects",
+                "≥2 instances can be optimized"
+            )
     
     def create_main_utilization_graphs(self):
         """Create main utilization analysis graphs"""
@@ -971,6 +1278,10 @@ class CloudSQLDashboard:
                         <div class="spec-value">{instance.get('region', 'Unknown')}</div>
                         <div class="spec-label">Region</div>
                     </div>
+                    <div class="spec-item">
+                        <div class="spec-value">{instance.get('database_count', 'N/A')}</div>
+                        <div class="spec-label">Databases</div>
+                    </div>
                 </div>
             </div>
             
@@ -1124,6 +1435,12 @@ class CloudSQLDashboard:
         with col3:
             st.metric("Database", instance.get('database_version', 'Unknown'))
             st.metric("Region", instance.get('region', 'Unknown'))
+            
+            # Only show database count if available
+            if 'database_count' in instance:
+                st.metric("Databases", f"{instance.get('database_count', 0)} DBs")
+            else:
+                st.metric("Databases", "Run updated script")
         
         # Resource utilization in text format
         st.markdown("**📈 3-Month Resource Utilization:**")
@@ -1309,15 +1626,37 @@ class CloudSQLDashboard:
         st.plotly_chart(fig, use_container_width=True)
     
     def create_all_instances_view(self):
-        """Create view showing all instances grouped by project with pagination"""
+        """Create view showing ALL instances (including projects with ≤3 instances) grouped by project with pagination"""
         if self.instances_df is None or self.instances_df.empty:
             return
         
         st.markdown("## 🔍 Complete Instance Analysis")
-        st.markdown("*All instances sorted by project*")
         
-        # Sort instances by project and then by instance name
-        sorted_df = self.instances_df.sort_values(['project_id', 'instance_id'])
+        # Check if data is filtered (only projects with >3 instances)
+        project_counts = self.instances_df.groupby('project_id').size()
+        min_instances_per_project = project_counts.min()
+        
+        if min_instances_per_project > 3:
+            st.warning(
+                "⚠️ **Filtered Data**: Current data only includes projects with >3 instances. "
+                "To see ALL projects including smaller ones, set `MIN_INSTANCES_PER_PROJECT = 0` in the monitoring script and re-run."
+            )
+            st.markdown("*Showing instances from projects with >3 instances (collection filter applied)*")
+        elif min_instances_per_project == 0:
+            st.success("✅ **Complete Data**: All projects included regardless of instance count")
+            st.markdown("*All instances from all accessible projects*")
+        else:
+            st.markdown("*All instances from collected projects*")
+        
+        # Calculate project instance counts and sort by count (descending)
+        project_counts = self.instances_df.groupby('project_id').size().sort_values(ascending=False)
+        
+        # Add project instance count to dataframe for sorting
+        df_with_counts = self.instances_df.copy()
+        df_with_counts['project_instance_count'] = df_with_counts['project_id'].map(project_counts)
+        
+        # Sort by project instance count (desc), then project name, then instance name
+        sorted_df = df_with_counts.sort_values(['project_instance_count', 'project_id', 'instance_id'], ascending=[False, True, True])
         
         # Pagination settings
         instances_per_page = st.sidebar.slider("Instances per page:", 5, 20, 10)
@@ -1356,6 +1695,13 @@ class CloudSQLDashboard:
                 project_instances = sorted_df[sorted_df['project_id'] == current_project]
                 project_underutil = len(project_instances[project_instances['underutilized'] == True])
                 
+                # Calculate total databases for this project
+                if 'database_count' in project_instances.columns:
+                    total_databases = project_instances['database_count'].sum()
+                    db_info = f", {total_databases} databases"
+                else:
+                    db_info = ""
+                
                 st.markdown(f"""
                 <div style="
                     font-size: 2rem;
@@ -1369,8 +1715,12 @@ class CloudSQLDashboard:
                     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
                 ">
                     📁 Project: {current_project} 
-                    <span style="font-size: 1rem; font-weight: normal;">
-                        ({len(project_instances)} instances, {project_underutil} underutilized)
+                    <span style="font-size: 1.2rem; font-weight: 600; color: #3b82f6;">
+                        [{len(project_instances)} instances{db_info}]
+                    </span>
+                    <br>
+                    <span style="font-size: 1rem; font-weight: normal; color: #64748b;">
+                        {project_underutil} underutilized instances
                     </span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1409,17 +1759,17 @@ class CloudSQLDashboard:
         
         # Fallback to simulation only if real data is not available
         if critical_spikes == 0 and moderate_spikes == 0 and max_cpu > 0:
-            # Legacy simulation for backward compatibility
+            # Legacy simulation for backward compatibility with new ranges
             critical_spikes = 1 if max_cpu >= 90 else 0
             if max_cpu >= 90:
                 moderate_spikes = max(1, critical_spikes)
-            elif max_cpu >= 50:
+            elif 50 <= max_cpu <= 85:  # Updated range: 50-85%
                 moderate_spikes = 1
             else:
                 moderate_spikes = 0
         
-        # Determine safety status based on enhanced zero-spike logic
-        is_safe_to_optimize = avg_cpu < 50 and critical_spikes == 0
+        # Determine safety status based on enhanced two-tier spike logic
+        is_safe_to_optimize = avg_cpu < 50 and critical_spikes == 0 and moderate_spikes == 0
         
         # Professional status determination
         if is_safe_to_optimize:
@@ -1480,7 +1830,7 @@ class CloudSQLDashboard:
         with col3:
             st.markdown("**⚠️ Performance Spikes**")
             st.metric("Critical >90%", critical_spikes, delta="Zero-spike policy")
-            st.metric("Moderate >50%", moderate_spikes, delta=f"{moderate_frequency:.2f}% of time" if moderate_frequency > 0 else "Low usage")
+            st.metric("Moderate 50-85%", moderate_spikes, delta=f"{moderate_frequency:.2f}% of time" if moderate_frequency > 0 else "Low usage")
             st.metric("Highest CPU", f"{max_cpu:.1f}%")
         
         with col4:
@@ -1661,6 +2011,16 @@ class CloudSQLDashboard:
         # Export functionality
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 📥 Export Options")
+        
+        if st.sidebar.button("📊 Download CSV Report"):
+            csv_data = self.generate_csv_report()
+            st.sidebar.download_button(
+                label="💾 Download Project Summary CSV",
+                data=csv_data,
+                file_name=f"cloudsql_project_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                help="Download detailed project-level analysis report"
+            )
         
         if st.sidebar.button("📊 Download Comprehensive Report", type="primary"):
             csv = self.instances_df.to_csv(index=False)

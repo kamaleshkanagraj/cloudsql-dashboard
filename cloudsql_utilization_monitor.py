@@ -104,6 +104,9 @@ class CloudSQLMonitor:
                     disk_size_gb = settings.get('dataDiskSizeGb', 0)
                     disk_type = settings.get('dataDiskType', 'Unknown')
                     
+                    # Get database count for this instance
+                    database_count = self.get_instance_database_count(project_id, instance['name'])
+                    
                     instances.append({
                         'project_id': project_id,
                         'instance_id': instance['name'],
@@ -116,7 +119,8 @@ class CloudSQLMonitor:
                         'region': instance.get('region', 'Unknown'),
                         'state': instance.get('state', 'Unknown'),
                         'backend_type': instance.get('backendType', 'Unknown'),
-                        'instance_type': instance.get('instanceType', 'Unknown')
+                        'instance_type': instance.get('instanceType', 'Unknown'),
+                        'database_count': database_count  # NEW: Database count per instance
                     })
             
             logger.info(f"Found {len(instances)} Cloud SQL instances in project {project_id}")
@@ -125,6 +129,49 @@ class CloudSQLMonitor:
         except Exception as e:
             logger.error(f"Error getting instances for project {project_id}: {e}")
             return []
+    
+    def get_instance_database_count(self, project_id, instance_id):
+        """Count the number of databases in a Cloud SQL instance"""
+        try:
+            service = build('sqladmin', 'v1', credentials=self.credentials)
+            request = service.databases().list(project=project_id, instance=instance_id)
+            response = request.execute()
+            
+            database_count = 0
+            if 'items' in response:
+                # Filter out system databases (information_schema, performance_schema, etc.)
+                user_databases = []
+                for db in response['items']:
+                    db_name = db.get('name', '').lower()
+                    # Skip common system databases
+                    if db_name not in ['information_schema', 'performance_schema', 'mysql', 'sys', 'postgres', 'template0', 'template1']:
+                        user_databases.append(db['name'])
+                
+                database_count = len(user_databases)
+                logger.debug(f"Instance {instance_id} has {database_count} user databases: {user_databases}")
+            
+            return database_count
+            
+        except Exception as e:
+            logger.warning(f"Error getting database count for {project_id}/{instance_id}: {e}")
+            return 0  # Return 0 if we can't get the count
+    
+    def filter_projects_by_instance_count(self, projects, min_instances=3):
+        """Filter projects that have more than the minimum number of instances"""
+        filtered_projects = []
+        
+        for project in projects:
+            project_id = project['project_id']
+            instances = self.get_cloudsql_instances(project_id)
+            instance_count = len(instances)
+            
+            if instance_count > min_instances:
+                logger.info(f"✅ Project {project_id} has {instance_count} instances (>{min_instances}) - INCLUDED")
+                filtered_projects.append(project)
+            else:
+                logger.info(f"❌ Project {project_id} has {instance_count} instances (<={min_instances}) - EXCLUDED")
+        
+        return filtered_projects
     
     def parse_tier_specs(self, tier):
         """Parse Cloud SQL tier to extract vCPU and memory specifications"""
@@ -164,8 +211,33 @@ class CloudSQLMonitor:
                     memory_mb = int(parts[3])
                     memory_gb = memory_mb / 1024
                     return (vcpu, memory_gb)
+            elif tier.startswith('db-perf-optimized-N-'):
+                # Parse performance-optimized tier: db-perf-optimized-N-4 (4 vCPU)
+                # Format: db-perf-optimized-N-{vcpu_count}
+                # Extract the number after the last dash
+                try:
+                    vcpu_str = tier.split('-')[-1]  # Get last part after dash
+                    vcpu = int(vcpu_str)
+                    # Performance optimized instances typically have 4GB per vCPU
+                    memory_gb = vcpu * 4
+                    logger.info(f"Performance-optimized tier {tier} parsed as {vcpu} vCPU, {memory_gb} GB")
+                    return (vcpu, memory_gb)
+                except (ValueError, IndexError):
+                    logger.warning(f"Could not parse vCPU count from tier: {tier}")
+                    pass
+            elif 'perf-optimized' in tier:
+                # Generic performance-optimized parsing
+                # Try to extract number from the end
+                import re
+                numbers = re.findall(r'\d+', tier)
+                if numbers:
+                    vcpu = int(numbers[-1])  # Last number is usually vCPU
+                    memory_gb = vcpu * 4     # Standard ratio for perf-optimized
+                    logger.info(f"Generic perf-optimized tier {tier} parsed as {vcpu} vCPU, {memory_gb} GB")
+                    return (vcpu, memory_gb)
             
-            # Default fallback
+            # Log unknown tier for future reference
+            logger.warning(f"Unknown tier format: {tier} - using fallback (0, 0)")
             return (0, 0)
             
         except Exception as e:
@@ -236,7 +308,7 @@ class CloudSQLMonitor:
                         view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
                         aggregation=monitoring_v3.Aggregation(
                             alignment_period={"seconds": 300},  # 5-minute intervals for granular data
-                            per_series_aligner=monitoring_v3.Aggregation.Aligner.ALIGN_MEAN,  # Match Google Console aggregation method
+                            per_series_aligner=monitoring_v3.Aggregation.Aligner.ALIGN_MAX,  # Capture peak values to detect spikes
                         ),
                     )
                     
@@ -510,13 +582,15 @@ class CloudSQLMonitor:
         return is_underutilized, reasons
     
     def analyze_underutilization_with_spikes(self, utilization_stats, metrics_data, threshold=50, spike_threshold=90, max_spikes_allowed=0, analysis_months=1):
-        """Zero-spike analysis - absolute performance safety (Application-First approach)
+        """Enhanced Two-Tier Spike Analysis - Ultimate performance safety (Application-First approach)
         
-        This method implements the corrected logic:
+        This method implements the enhanced logic:
         1. 30-day analysis period for recent patterns
         2. 50% average threshold (conservative)
-        3. ZERO spikes allowed above 90% (application safety)
-        4. Any spike = keep current size (no performance risk)
+        3. Two-tier spike detection:
+           - Moderate spikes: 50% < CPU ≤ 89%
+           - Critical spikes: CPU > 90%
+        4. ANY spike (moderate OR critical) = keep current size (no performance risk)
         """
         
         cpu_stats = utilization_stats.get('cpu', {})
@@ -534,10 +608,10 @@ class CloudSQLMonitor:
             max_cpu = cpu_stats.get('max_percentage', 0)
             data_points = cpu_stats.get('data_points', 0)
             
-            # Dual-Threshold Spike Analysis - Critical (>90%) and Moderate (>50%)
+            # Enhanced Two-Tier Spike Analysis - Critical (≥90%) and Moderate (50-85%)
             cpu_values = [d['value'] for d in cpu_data]
-            critical_spikes = sum(1 for value in cpu_values if value >= spike_threshold)  # >90%
-            moderate_spikes = sum(1 for value in cpu_values if value >= 50)  # >50%
+            critical_spikes = sum(1 for value in cpu_values if value >= spike_threshold)  # ≥90%
+            moderate_spikes = sum(1 for value in cpu_values if 50 <= value <= 85)  # 50% ≤ CPU ≤ 85%
             
             # Find the highest spike for context
             highest_spike = max(cpu_values) if cpu_values else 0
@@ -563,15 +637,18 @@ class CloudSQLMonitor:
                 'moderate_threshold': 50,
                 'analysis_period_days': days_analyzed,
                 'total_data_points': total_data_points,
-                'zero_spike_policy': True
+                'zero_spike_policy': True,
+                'two_tier_policy': True,  # NEW: Enhanced two-tier spike detection
+                'moderate_range': '50-85%',
+                'critical_range': f'≥{spike_threshold}%'
             }
             
-            logger.info(f"Dual-Threshold Spike Analysis Results:")
+            logger.info(f"Enhanced Two-Tier Spike Analysis Results:")
             logger.info(f"  Analysis Period: {days_analyzed} days ({total_data_points:,} data points)")
-            logger.info(f"  Critical Spikes (>{spike_threshold}%): {critical_spikes} ({critical_spike_frequency:.2f}% of time)")
-            logger.info(f"  Moderate Spikes (>50%): {moderate_spikes} ({moderate_spike_frequency:.2f}% of time)")
+            logger.info(f"  Critical Spikes (≥{spike_threshold}%): {critical_spikes} ({critical_spike_frequency:.2f}% of time)")
+            logger.info(f"  Moderate Spikes (50-85%): {moderate_spikes} ({moderate_spike_frequency:.2f}% of time)")
             logger.info(f"  Highest CPU Ever: {highest_spike:.1f}%")
-            logger.info(f"  Policy: ZERO critical spikes allowed (Application safety first)")
+            logger.info(f"  Policy: ZERO spikes ≥50% allowed (Ultimate application safety)")
             
             if critical_spikes > 0:
                 logger.warning(f"  ⚠️  PERFORMANCE RISK: {critical_spikes} critical spikes detected - cannot safely reduce CPU")
@@ -584,28 +661,34 @@ class CloudSQLMonitor:
             logger.info(f"  Peak CPU (P95): {p95_cpu:.1f}%")
             logger.info(f"  Maximum CPU: {max_cpu:.1f}%")
             
-            # Enhanced Zero-Spike Decision Logic (Application Safety First)
+            # Enhanced Two-Tier Spike Decision Logic (Ultimate Application Safety)
             avg_below_threshold = avg_cpu < threshold
             zero_critical_spikes = critical_spikes == 0
+            zero_moderate_spikes = moderate_spikes == 0
+            zero_all_spikes = zero_critical_spikes and zero_moderate_spikes
             
-            logger.info(f"Enhanced Decision Criteria:")
+            logger.info(f"Enhanced Two-Tier Decision Criteria:")
             logger.info(f"  Average below {threshold}%: {'✓' if avg_below_threshold else '✗'} ({avg_cpu:.1f}%)")
-            logger.info(f"  ZERO critical spikes >{spike_threshold}%: {'✓' if zero_critical_spikes else '✗'} ({critical_spikes} spikes found)")
-            logger.info(f"  Moderate spikes >50%: {moderate_spikes} spikes ({moderate_spike_frequency:.2f}% of time)")
+            logger.info(f"  ZERO critical spikes ≥{spike_threshold}%: {'✓' if zero_critical_spikes else '✗'} ({critical_spikes} spikes found)")
+            logger.info(f"  ZERO moderate spikes (50-85%): {'✓' if zero_moderate_spikes else '✗'} ({moderate_spikes} spikes found)")
             logger.info(f"  Highest CPU ever: {highest_spike:.1f}%")
             
-            # Final Decision - BOTH criteria must pass
-            if avg_below_threshold and zero_critical_spikes:
+            # Final Decision - ALL criteria must pass (avg < 50% AND zero moderate AND zero critical spikes)
+            if avg_below_threshold and zero_all_spikes:
                 is_underutilized = True
-                reasons.append(f"Safe to optimize: avg CPU {avg_cpu:.1f}% < {threshold}%, ZERO critical spikes >{spike_threshold}% in {days_analyzed} days")
-                reasons.append(f"Usage pattern: {moderate_spikes} moderate spikes >50% ({moderate_spike_frequency:.2f}% of time)")
-                logger.info("  RESULT: SAFE TO OPTIMIZE ✅ (No performance risk)")
+                reasons.append(f"Safe to optimize: avg CPU {avg_cpu:.1f}% < {threshold}%, ZERO spikes ≥50% in {days_analyzed} days")
+                reasons.append(f"Performance guarantee: No spikes above 50% detected - application consistently low usage")
+                logger.info("  RESULT: SAFE TO OPTIMIZE ✅ (Zero performance risk)")
                 
-            elif avg_below_threshold and not zero_critical_spikes:
+            elif avg_below_threshold and (not zero_critical_spikes):
                 is_underutilized = False
-                reasons.append(f"Performance risk detected: {critical_spikes} critical spikes >{spike_threshold}% - application needs current capacity")
-                reasons.append(f"Additional context: {moderate_spikes} moderate spikes >50% ({moderate_spike_frequency:.2f}% of time)")
-                logger.info("  RESULT: KEEP CURRENT SIZE ❌ (Performance spikes detected)")
+                reasons.append(f"Critical performance risk: {critical_spikes} spikes ≥{spike_threshold}% - application needs current capacity")
+                logger.warning("  RESULT: KEEP CURRENT SIZE ⚠️ (Critical spikes detected)")
+                
+            elif avg_below_threshold and (not zero_moderate_spikes):
+                is_underutilized = False
+                reasons.append(f"Moderate performance risk: {moderate_spikes} spikes 50-85% - application needs current capacity during peak periods")
+                logger.warning("  RESULT: KEEP CURRENT SIZE ⚠️ (Moderate spikes detected)")
                 
             else:
                 is_underutilized = False
@@ -642,7 +725,7 @@ class CloudSQLMonitor:
             
         return consecutive_counts
     
-    def analyze_underutilized_instances(self, threshold=50, analysis_months=1, spike_threshold=90, max_spikes_allowed=0):
+    def analyze_underutilized_instances(self, threshold=50, analysis_months=1, spike_threshold=90, max_spikes_allowed=0, min_instances_per_project=3):
         """Zero-spike method - guarantees application performance safety
         
         Args:
@@ -659,6 +742,15 @@ class CloudSQLMonitor:
         if not projects:
             logger.error("No accessible projects found")
             return pd.DataFrame(), pd.DataFrame()
+        
+        # Filter projects with more than minimum instances (if filtering enabled)
+        if min_instances_per_project > 0:
+            projects = self.filter_projects_by_instance_count(projects, min_instances=min_instances_per_project)
+            if not projects:
+                logger.warning(f"No projects with more than {min_instances_per_project} instances found. Exiting analysis.")
+                return pd.DataFrame(), pd.DataFrame()
+        else:
+            logger.info("MIN_INSTANCES_PER_PROJECT = 0: Analyzing ALL projects (no instance count filtering)")
         
         all_instances = []
         all_metrics = []
@@ -790,14 +882,20 @@ def main():
     CPU_AVG_THRESHOLD = 50   # Conservative threshold to avoid performance issues
     SPIKE_THRESHOLD = 90     # Lower threshold - any spike above 90% is risky
     MAX_SPIKES_ALLOWED = 0   # ZERO spikes allowed - performance safety first
+    MIN_INSTANCES_PER_PROJECT = 0  # Analyze ALL projects (set to 3 to filter projects with >3 instances)
     
     print(f"\n{'='*80}")
     print(f"🔍 CLOUD SQL RESOURCE UTILIZATION ANALYSIS")
     print(f"{'='*80}")
-    print(f"Analysis Period: {ANALYSIS_MONTHS} month (30 days - zero-spike analysis)")
+    print(f"Analysis Period: {ANALYSIS_MONTHS} month (30 days - two-tier spike analysis)")
     print(f"CPU Average Threshold: {CPU_AVG_THRESHOLD}% (Conservative for performance safety)")
-    print(f"Spike Detection: >{SPIKE_THRESHOLD}% (ZERO spikes allowed - performance first)")
-    print(f"Algorithm: Zero-spike approach (Application reliability guaranteed)")
+    print(f"Enhanced Spike Detection: >50% moderate, >{SPIKE_THRESHOLD}% critical (ZERO spikes >50% allowed)")
+    print(f"Two-Tier Logic: ANY spike >50% = KEEP CURRENT SIZE (Ultimate performance safety)")
+    if MIN_INSTANCES_PER_PROJECT > 0:
+        print(f"Project Filter: Only projects with >{MIN_INSTANCES_PER_PROJECT} instances")
+    else:
+        print(f"Project Filter: ALL projects (no filtering)")
+    print(f"Algorithm: Enhanced Two-Tier Spike Analysis (Ultimate application reliability)")
     print(f"{'='*80}")
     
     # Initialize monitor (uses default credentials)
@@ -808,7 +906,8 @@ def main():
         threshold=CPU_AVG_THRESHOLD, 
         analysis_months=ANALYSIS_MONTHS,
         spike_threshold=SPIKE_THRESHOLD,
-        max_spikes_allowed=MAX_SPIKES_ALLOWED
+        max_spikes_allowed=MAX_SPIKES_ALLOWED,
+        min_instances_per_project=MIN_INSTANCES_PER_PROJECT
     )
     
     if not instances_df.empty:
